@@ -8,12 +8,13 @@ LOCDIR	  = src/Infrastructure/XGrid/tests
 
 .NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_XGridUTest \
+                $(ESMF_TESTDIR)/ESMF_AltXGridUTest \
 	        $(ESMF_TESTDIR)/ESMF_XGridMaskingUTest \
 	        $(ESMF_TESTDIR)/ESMC_XGridUTest
 
-TESTS_RUN     = RUN_ESMF_XGridUTest RUN_ESMF_XGridMaskingUTest RUN_ESMC_XGridUTest
+TESTS_RUN     = RUN_ESMF_XGridUTest RUN_ESMF_AltXGridUTest RUN_ESMF_XGridMaskingUTest RUN_ESMC_XGridUTest
 
-TESTS_RUN_UNI = RUN_ESMF_XGridUTestUNI RUN_ESMF_XGridMaskingUTestUNI RUN_ESMC_XGridUTestUNI
+TESTS_RUN_UNI = RUN_ESMF_XGridUTestUNI RUN_ESMF_AltXGridUTestUNI RUN_ESMF_XGridMaskingUTestUNI RUN_ESMC_XGridUTestUNI
 
 include ${ESMF_DIR}/makefile
 
@@ -33,6 +34,12 @@ RUN_ESMF_XGridUTest:
 
 RUN_ESMF_XGridUTestUNI:
 	$(MAKE) TNAME=XGrid NP=1 ftest
+
+RUN_ESMF_AltXGridUTest:
+	$(MAKE) TNAME=AltXGrid NP=2 ftest
+
+RUN_ESMF_AltXGridUTestUNI:
+	$(MAKE) TNAME=AltXGrid NP=1 ftest
 
 RUN_ESMF_XGridMaskingUTest:
 	$(MAKE) TNAME=XGridMasking NP=2 ftest
