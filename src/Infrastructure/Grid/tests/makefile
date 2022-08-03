@@ -9,18 +9,21 @@ LOCDIR	  = src/Infrastructure/Array/tests
 .NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMC_GridUTest \
                 $(ESMF_TESTDIR)/ESMF_GridCreateUTest \
+                $(ESMF_TESTDIR)/ESMF_AltGridCreateUTest \
 		$(ESMF_TESTDIR)/ESMF_GridCoordUTest \
 		$(ESMF_TESTDIR)/ESMF_GridItemUTest \
 		$(ESMF_TESTDIR)/ESMF_GridArbitraryUTest
 
 TESTS_RUN     = RUN_ESMC_GridUTest \
                 RUN_ESMF_GridCreateUTest \
+                RUN_ESMF_AltGridCreateUTest \
 	        RUN_ESMF_GridCoordUTest \
 	        RUN_ESMF_GridItemUTest \
 		RUN_ESMF_GridArbitraryUTest
 
 TESTS_RUN_UNI = RUN_ESMC_GridUTestUNI \
                 RUN_ESMF_GridCreateUTestUNI \
+                RUN_ESMF_AltGridCreateUTestUNI \
 	        RUN_ESMF_GridCoordUTestUNI \
 	        RUN_ESMF_GridItemUTestUNI \
 		RUN_ESMF_GridArbitraryUTestUNI
@@ -52,6 +55,20 @@ RUN_ESMF_GridCreateUTestUNI:
 	cp -f ../../Field/tests/data/*.nc $(ESMF_TESTDIR)/data
 	chmod u+rw $(ESMF_TESTDIR)/data/*
 	$(MAKE) TNAME=GridCreate NP=1 ftest
+
+RUN_ESMF_AltGridCreateUTest:
+	mkdir -p $(ESMF_TESTDIR)/data
+	cp -f data/*.nc $(ESMF_TESTDIR)/data
+	cp -f ../../Field/tests/data/*.nc $(ESMF_TESTDIR)/data
+	chmod u+rw $(ESMF_TESTDIR)/data/*
+	$(MAKE) TNAME=AltGridCreate NP=4 ftest
+
+RUN_ESMF_AltGridCreateUTestUNI:
+	mkdir -p $(ESMF_TESTDIR)/data
+	cp -f data/*.nc $(ESMF_TESTDIR)/data
+	cp -f ../../Field/tests/data/*.nc $(ESMF_TESTDIR)/data
+	chmod u+rw $(ESMF_TESTDIR)/data/*
+	$(MAKE) TNAME=AltGridCreate NP=1 ftest
 
 
 # --- Grid Coord Tests
