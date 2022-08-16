@@ -246,7 +246,6 @@ contains
 
         integer                             :: max_i, max_j, n
         real(ESMF_KIND_R8), pointer         :: seqIndexArray(:)
-        allocate(seqIndexArray(max_i*max_j))
 
         rc = ESMF_SUCCESS
         localrc = ESMF_SUCCESS
@@ -292,6 +291,8 @@ contains
         ! Iterate through all indices for given row, then proceed to next column.
         max_i = 9
         max_j = 9
+
+        allocate(seqIndexArray(max_i*max_j))
 
         do n=1, max_i*max_j
           seqIndexArray(n) = n

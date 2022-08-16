@@ -103,6 +103,8 @@ program ESMF_AltGridCreateUTest
   type(ESMF_Staggerloc) :: staggerLocList(2)
   type(ESMF_CubedSphereTransform_Args) :: transformArgs
   character(128) :: gridAfile, gridBfile
+  type(ESMF_ARRAY) :: maskB
+  type(ESMF_DISTGRID) :: distgrid1D
  
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
@@ -183,6 +185,20 @@ program ESMF_AltGridCreateUTest
 
 !  call ESMF_GridGet(gridB(1), nodeCount=sideBCount, rc=localrc)
 !  print *, "OCN Cells / Area: ", sideBCount," / "
+
+  write(name,*) "Initialize array for ocean mask"
+  distgrid1D = ESMF_DistGridCreate(minIndex=(/0/), maxIndex=(/999/), &
+	regDecomp=(/petCount/), rc=localrc)
+  maskB = ESMF_ArrayCreate(typekind=ESMF_TYPEKIND_R4, distgrid=distgrid1D, rc=localrc)
+  write(name, *)  "Read ocean mask and write to grid"
+  call ESMF_ArrayRead(maskB, fileName='data/ocean_mask.nc', &
+	iofmt=ESMF_IOFMT_NETCDF, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  call ESMF_GridSetItem(gridB(1),staggerLoc=ESMF_STAGGERLOC_CENTER, &
+	itemflag=ESMF_GRIDITEM_MASK, &
+	array=maskB, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   !create XGrid
    print *, "Building XGrid from mosaics"
