@@ -1,0 +1,24 @@
+Prototype of a Pre-computed FMS Exchange Grid Being Ingested Into ESMF
+----------------------------------------------------------------------
+Current functionality in the ESMF allows for an exchange grid to be internally generated through the use of ESMF primitive functions and built-in Fortran libraries. 
+This capability has been enhanced such that a pre-computed FMS exchange grid can now be handed-off to ESMF in offline mode before downstream flux calculations occur.
+An external interface that sits outside of the UFS framework was developed to make the external exchange grid available to the native ESMF subroutines at the time the
+application is run.  It was not necessary to make any modifications to the ESMF primitives to accomplish this end - allowing for the code to become more portable and 
+configurable when future updates are included.  
+Unit and system tests were first run on the HPC Orion machine to ensure that the ESMF exchange grid capabilities properly functioned in online mode.  Log files 
+confirmed that the grid specifications were assimilated at runtime and made available to the other components within the UFS (please see the PI5.1_Platform65_66 
+PowerPoint presentation for a complete description of the results).  The ESMF_XGridCreateFromSparseMat() routine was adapted to build the sparse matrices from the 
+constituent ocean and atmosphere grids.  The ESMF_AltGridCreateUTest.stdout log files show the side A and side B grids (i.e. ocean_mosaic.nc and C48_mosaic.nc) being 
+read in and validated by ESMF when run in coupled mode.  ESMF_GridCreate() was used to generate the ESMF-equivalent grids and populate the fields with the original 
+data from the FMS grid specification files.
+Once it could be confirmed that the individual side A and side B grids could be populated in ESMF, the next step involved developing the external interface that would 
+hand-off the pre-computed FMS exchange grid to ESMF.  The combined side A and side B atmosphere/ocean exchange grid files (i.e. C48_mosaic_tile1Xocean_mosaic_tile1.nc) 
+served as input to the newly-created Fortran routine and provided the necessary fields to compute the downstream flux calculations.  The ESMF StateRead() method places 
+the FMS exchange grid file into memory while StateGet() copies the variables and arrays to the local space so information can later be extracted and modified.  
+FieldGet() populates the Fortran fields with the actual values and GridValidate() ensures the grids and meshes properly intersect when retiling is performed.   
+The array indices within the pre-computed FMS exchange grid needed to be converted to a single linear sequence so that it would be compatible with the ESMF 
+environment.  All other internalized variables and arrays were also converted to a physical form that ESMF understands.  This includes using the same variable naming 
+convention, data type and array dimensions used to store the field values.  The indice renumbering routine is designed to take an arbitrary maximum length and width 
+value for any given exchange grid.  A one-dimensional scalar array, seqIndexArray, is used to hold the new ESMF index list after the grid renumbering takes place.  The 
+program loops through the original grid and assigns the (i,j) index pair to a new index.  The new sequence of indices is then printed out to confirm the new array has 
+been constructed correctly.   
