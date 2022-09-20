@@ -304,6 +304,46 @@ contains
         allocate(sparseMatA2X(2)%factorIndexList(2,3), sparseMatA2X(2)%factorList(3))
         allocate(sparseMatX2B(1)%factorIndexList(2,12), sparseMatX2B(1)%factorList(12))
 
+        ! Find the centroid midpoint between each pair of grid cells.
+        sideA(1) = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/2,2/), &
+        coordDep1=(/1/), &
+        coordDep2=(/2/), &
+        name='source Grid 1 on side A', rc=localrc)
+        sideA(2) = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/2,1/), &
+        coordDep1=(/1/), &
+        coordDep2=(/2/), &
+        name='source Grid 2 on side A', rc=localrc)
+
+        do i = 1, 2
+            call ESMF_GridAddCoord(sideA(i), staggerloc=ESMF_STAGGERLOC_CENTER, &
+                rc=localrc)
+        enddo
+
+        ! SideA first grid
+        centroidA1X=(/0.5, 1.5/)
+        centroidA1Y=(/0.5, 1.5/)
+        call ESMF_GridGetCoord(sideA(1), localDE=0, &
+            staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
+            farrayPtr=coordX, rc=localrc)
+        coordX = centroidA1X
+        call ESMF_GridGetCoord(sideA(1), localDE=0, &
+            staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
+            farrayPtr=coordY, rc=localrc)
+        coordY = centroidA1Y
+
+        ! SideA second grid
+        centroidA2X=(/0.5, 1.5/)
+        centroidA2Y=(/2.5/)
+        call ESMF_GridGetCoord(sideA(2), localDE=0, &
+            staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
+            farrayPtr=coordX, rc=localrc)
+        coordX = centroidA2X
+        call ESMF_GridGetCoord(sideA(2), localDE=0, &
+            staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
+            farrayPtr=coordY, rc=localrc)
+        coordY = centroidA2Y
+
+      
         ! factorIndexList
         ! setting up mapping between A1 -> X
         sparseMatA2X(1)%factorIndexList(1,1)=1
