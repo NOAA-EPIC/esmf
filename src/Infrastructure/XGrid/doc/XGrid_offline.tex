@@ -1,0 +1,34 @@
+% $Id$
+
+\label{sec:xgrid:offline}
+----------------------------------------------------------------------
+Current functionality in the ESMF allows for an {\tt ESMF\_XGrid} object to be internally generated 
+through the use of ESMF primitive functions and built-in Fortran libraries. This capability has been 
+enhanced such that a pre-computed FMS exchange grid can now be handed-off to ESMF in offline mode 
+before downstream flux calculations occur. The benefit of this method is to incorporate existing FMS 
+files and methodologies in addition to consistency with the FMS XGrid computation. Note that it is 
+necessary that all user supplied FMS NetCDF files have complete headers, including descriptions. They 
+will otherwise need to be edited.
+
+The stages of this process are first to read in the FMS-generated NetCDF grid files that  
+represent the model component grids on either side of the exchange grid. An ESMF {\tt ESMF\_XGrid} 
+object is then created from this user supplied information. This {\tt ESMF\_XGrid} contains the 
+necessary variables that are not necessarily present in an FMS-generated XGrid. 
+
+Following this, the FMS-generated XGrid NetCDF file can be read using the {\tt ESMF\_FieldBundleRead()} 
+method to place the FMS exchange grid file into memory, while {\tt ESMF\_FieldGet()} copies the variables 
+and arrays to the local space so information can later be extracted and modified.  {\tt ESMF\_FieldGet()} 
+populates the Fortran fields with the actual values and {\tt ESMF\_GridValidate()} ensures the grids and 
+meshes properly intersect when retiling is performed.
+
+The remaining step is to remap the XGrid i,j indices from FMS to the ESMF standard linear index. This is
+necessary in order to correctly sequence the arrays to the {\tt ESMF\_XGrid}.  The index renumbering
+routine added here is designed to take an arbitrary maximum length and width value for any given exchange 
+grid.  A one-dimensional scalar array, seqIndexArray, is used to hold the new ESMF index list after the 
+grid renumbering takes place.  The program loops through the original grid and assigns the (i,j) index 
+pair to a new index.  The new sequence of indices is then printed out to confirm the new array has been 
+constructed correctly.  The centroids of the sequential indices were found by calculating the midpoint of 
+the neighboring grid cells.  This method loops through all the indices in an array and then calculates the 
+middle distance between two adjacent grid cells.  An array was constructed to store the final centroids 
+that would be input to the {\tt ESMF\_XGridCreateFromSparseMat()} routine for building the equivalent 
+{\tt ESMF\_XGrid}.

@@ -213,11 +213,13 @@ contains
 !------------------------------------------------------------------------
     subroutine test3(rc)
         integer, intent(out)                :: rc
-        integer                             :: localrc, i, j
+        integer                             :: localrc, lDE, localDECount, i, j
         type(ESMF_XGrid)                    :: xgrid
         type(ESMF_Grid)                     :: sideA(2), sideB(1)
         type(ESMF_DistGrid)                 :: sideAdg(2), sideBdg(1), distgrid
         real(ESMF_KIND_R8)                  :: centroid(12,2), area(12)
+        real(ESMF_KIND_R8)                  :: centroidA1X(2), centroidA1Y(2), centroidA2X(2), centroidA2Y(1)
+        real(ESMF_KIND_R8), pointer         :: coordX(:), coordY(:), coord2X(:), coord2Y(:)
         type(ESMF_XGridSpec)                :: sparseMatA2X(2), sparseMatX2B(1)
 
         type(ESMF_Grid)                     :: l_sideA(2), l_sideB(1)
@@ -305,6 +307,7 @@ contains
         allocate(sparseMatX2B(1)%factorIndexList(2,12), sparseMatX2B(1)%factorList(12))
 
         ! Find the centroid midpoint between each pair of grid cells.
+        print *, 'Set up grids for centroid calculation'
         sideA(1) = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/2,2/), &
         coordDep1=(/1/), &
         coordDep2=(/2/), &
@@ -319,31 +322,54 @@ contains
                 rc=localrc)
         enddo
 
+        call ESMF_GridGet(sideA(1), localDECount=localDECount, rc=localrc)
+        if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+       
+        print *, 'Get and map SideA1 coordinates. LocalDE', localDECount
+        do lDE=0,localDECount-1
+
         ! SideA first grid
         centroidA1X=(/0.5, 1.5/)
         centroidA1Y=(/0.5, 1.5/)
-        call ESMF_GridGetCoord(sideA(1), localDE=0, &
+
+        call ESMF_GridGetCoord(sideA(1), localDE=lDE, &
             staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
             farrayPtr=coordX, rc=localrc)
+        if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
         coordX = centroidA1X
-        call ESMF_GridGetCoord(sideA(1), localDE=0, &
+
+        call ESMF_GridGetCoord(sideA(1), localDE=lDE, &
             staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
             farrayPtr=coordY, rc=localrc)
+        if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
         coordY = centroidA1Y
+        enddo
+
+        call ESMF_GridGet(sideA(1), localDECount=localDECount, rc=localrc)
+        if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+        print *, 'Get and map SideA2 coordinates. LocalDE', localDECount
+        do lDE=0,localDECount-1
 
         ! SideA second grid
         centroidA2X=(/0.5, 1.5/)
         centroidA2Y=(/2.5/)
-        call ESMF_GridGetCoord(sideA(2), localDE=0, &
+              
+         call ESMF_GridGetCoord(sideA(2), localDE=lDE, &
             staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
-            farrayPtr=coordX, rc=localrc)
-        coordX = centroidA2X
-        call ESMF_GridGetCoord(sideA(2), localDE=0, &
-            staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
-            farrayPtr=coordY, rc=localrc)
-        coordY = centroidA2Y
+            farrayPtr=coord2X, rc=localrc)
+        if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+        coord2X = centroidA2X
 
-      
+        call ESMF_GridGetCoord(sideA(2), localDE=lDE, &
+            staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
+            farrayPtr=coord2Y, rc=localrc)
+        if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+        coord2Y = centroidA2Y
+       enddo 
+
+       print *, 'Set up mappings'
+    
         ! factorIndexList
         ! setting up mapping between A1 -> X
         sparseMatA2X(1)%factorIndexList(1,1)=1
@@ -451,6 +477,7 @@ contains
         B_area(2,2) = 3./4
 
         ! Finally ready to do an flux exchange from A side to B side
+        print *, 'Build XGrid'
         xgrid = ESMF_XGridCreateFromSparseMat(sideAGrid=sideA, sideBGrid=sideB, &
             area=xgrid_area, centroid=centroid, &
             sparseMatA2X=sparseMatA2X, sparseMatX2B=sparseMatX2B, rc=localrc)
@@ -1459,21 +1486,21 @@ contains
 !      ESMF_ERR_PASSTHRU, &
 !      ESMF_CONTEXT, rcToReturn=rc)) return
 
-     print *, "Test StateRead method"
-     call ESMF_StateRead(state, "./data/C48_mosaic_tile1Xocean_mosaic_tile1.nc", rc=localrc)
-     call ESMF_StateGet(state, "value", field=xfieldin, rc=localrc)
-     call ESMF_FieldGet(xfieldin, grid=xgridin,rc=localrc)
-    call ESMF_GridValidate(OcnGrid, rc=localrc)
-    if (ESMF_LogFoundError(localrc, &
-      ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
+!     print *, "Test StateRead method"
+!     call ESMF_StateRead(state, "./data/C48_mosaic_tile1Xocean_mosaic_tile1.nc", rc=localrc)
+!     call ESMF_StateGet(state, "value", field=xfieldin, rc=localrc)
+!     call ESMF_FieldGet(xfieldin, grid=xgridin,rc=localrc)
+!    call ESMF_GridValidate(OcnGrid, rc=localrc)
+!    if (ESMF_LogFoundError(localrc, &
+!      ESMF_ERR_PASSTHRU, &
+!      ESMF_CONTEXT, rcToReturn=rc)) return
 
-     print *, "Test GridCreate method"
-     dirxgridin=ESMF_GridCreate(filename='data/C48_mosaic_tile1Xocean_mosaic_tile1.nc', rc=localrc)
-    call ESMF_GridValidate(dirxgridin, rc=localrc)
-    if (ESMF_LogFoundError(localrc, &
-      ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
+!     print *, "Test GridCreate method"
+!     dirxgridin=ESMF_GridCreate(filename='data/C48_mosaic_tile1Xocean_mosaic_tile1.nc', rc=localrc)
+!    call ESMF_GridValidate(dirxgridin, rc=localrc)
+!    if (ESMF_LogFoundError(localrc, &
+!      ESMF_ERR_PASSTHRU, &
+!      ESMF_CONTEXT, rcToReturn=rc)) return
 
 
 

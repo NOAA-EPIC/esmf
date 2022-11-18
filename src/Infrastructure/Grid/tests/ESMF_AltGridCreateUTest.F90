@@ -54,7 +54,7 @@ program ESMF_AltGridCreateUTest
   character(ESMF_MAXSTR) :: name, grid_name
 
   type(ESMF_Grid) :: grid, OCNgrid, ATMgrid, grid2, gridAlias,grid_multi
-  type(ESMF_Grid) :: gridA(1), gridB(1)
+  type(ESMF_Grid) :: gridA(1), gridB(1), gridA1D(1), gridA2D(1)
   type(ESMF_XGrid) :: xgrid
   type(ESMF_VM) :: vm
   type(ESMF_DistGrid) :: distgrid, distgrid2, distgrid_multi
@@ -99,12 +99,21 @@ program ESMF_AltGridCreateUTest
   real(ESMF_KIND_R8) :: lonmin, latmin, lonmax, latmax, lonmean, latmean
   real(ESMF_KIND_R8) :: threshhold
   type(ESMF_DELayout) :: delayout
-  integer :: total, s,  decount, localDe
+  integer :: total, s, decount, localDe
   type(ESMF_Staggerloc) :: staggerLocList(2)
   type(ESMF_CubedSphereTransform_Args) :: transformArgs
   character(128) :: gridAfile, gridBfile
   type(ESMF_ARRAY) :: maskB
-  type(ESMF_DISTGRID) :: distgrid1D
+  type(ESMF_DISTGRID) :: distgrid1D, distgrid2D
+  type(ESMF_ArraySpec) :: arrayspec1D, arrayspec2D
+  type(ESMF_Array) :: AArray, BArray, XGridAreaArray
+
+  character(ESMF_MAXSTR), allocatable :: flds(:)
+  real(ESMF_KIND_R8), pointer :: ptr(:)
+  type(ESMF_FieldBundle) :: FBin
+  type(ESMF_Field) :: fieldRd
+  type(ESMF_Mesh) :: xgrid_mesh
+  integer :: n
  
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
@@ -134,6 +143,29 @@ program ESMF_AltGridCreateUTest
   staggerLocList(2) = ESMF_STAGGERLOC_CORNER
 
   ! Create cubed sphere grid with coordTypeKind == ESMF_TYPEKIND_R4
+
+  ! create grid with nondefault parameter
+  ! Set up decomposition for src Grid
+!  regDecompPTile(:,1)=(/2,2/)
+!  regDecompPTile(:,2)=(/2,2/)
+!  regDecompPTile(:,3)=(/2,2/)
+!  regDecompPTile(:,4)=(/2,2/)
+!  regDecompPTile(:,5)=(/2,2/)
+!  regDecompPTile(:,6)=(/2,2/)
+
+  !decompFlagPTile(:,1)=(/ESMF_DECOMP_CYCLIC,  1/)
+  !decompFlagPTile(:,2)=(/ESMF_DECOMP_BALANCED, 2/)
+  !decompFlagPTile(:,3)=(/ESMF_DECOMP_RESTFIRST,3/)
+  !decompFlagPTile(:,4)=(/ESMF_DECOMP_RESTLAST, 4/)
+  !decompFlagPTile(:,5)=(/ESMF_DECOMP_CYCLIC,   5/)
+  !decompFlagPTile(:,6)=(/ESMF_DECOMP_BALANCED,  6/)
+
+!  deLabelList(1) = 11
+!  deLabelList(1) = 12
+!  deLabelList(1) = 13
+!  deLabelList(1) = 14
+!  deLabelList(1) = 15
+!  deLabelList(1) = 16
  
   gridAfile = 'data/C48_mosaic.nc'
   print *, "Reading ATM mosaic to grid, ", gridAfile
@@ -142,6 +174,16 @@ program ESMF_AltGridCreateUTest
                 coordTypeKind = ESMF_TYPEKIND_R8, &
                 tileFilePath='./data/', rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+!  print *, "Reading ATM mosaic to grid, overriding decomposition"
+!  gridA1D(1) = ESMF_GridCreateMosaic(filename=gridAfile, &
+!                regDecompPTile=regDecompPTile, &
+  !              decompFlagPTile=decompFlagPTile, &
+  !              deLabelList=deLabelList, &
+!                staggerLocList= staggerLocList, &
+!                coordTypeKind = ESMF_TYPEKIND_R8, &
+!                tileFilePath='./data/', rc=localrc)
+!  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   write(name, *)  "Validating ATM grid creation"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
@@ -186,25 +228,26 @@ program ESMF_AltGridCreateUTest
 !  call ESMF_GridGet(gridB(1), nodeCount=sideBCount, rc=localrc)
 !  print *, "OCN Cells / Area: ", sideBCount," / "
 
-  write(name,*) "Initialize array for ocean mask"
-  distgrid1D = ESMF_DistGridCreate(minIndex=(/0/), maxIndex=(/999/), &
-	regDecomp=(/petCount/), rc=localrc)
-  maskB = ESMF_ArrayCreate(typekind=ESMF_TYPEKIND_R4, distgrid=distgrid1D, rc=localrc)
-  write(name, *)  "Read ocean mask and write to grid"
-  call ESMF_ArrayRead(maskB, fileName='data/ocean_mask.nc', &
-	iofmt=ESMF_IOFMT_NETCDF, rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+    call ESMF_GridAddItem(gridB(1),staggerLoc=ESMF_STAGGERLOC_CORNER, &
+      itemflag=ESMF_GRIDITEM_MASK, rc=localrc)
+    if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
-  call ESMF_GridSetItem(gridB(1),staggerLoc=ESMF_STAGGERLOC_CENTER, &
-	itemflag=ESMF_GRIDITEM_MASK, &
-	array=maskB, rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+    call ESMF_GridGetItem(gridB(1), staggerLoc=ESMF_STAGGERLOC_CORNER, &
+      itemflag=ESMF_GRIDITEM_MASK, array=maskB, rc=localrc)
+    if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+    write(name, *)  "Read ocean mask and write to grid"
+    call ESMF_ArrayRead(maskB, fileName='data/ocean_mask.nc', &
+        variableName="mask", iofmt=ESMF_IOFMT_NETCDF, rc=localrc)
+    if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
 
   !create XGrid
    print *, "Building XGrid from mosaics"
    xgrid = ESMF_XGridCreate(sideAGrid=(/GridA(1)/), &
      sideBGrid=(/gridB(1)/), &
      storeOverlay = .true., &
+     sideBMaskValues=(/1/), &
      rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE  
 
@@ -214,16 +257,58 @@ program ESMF_AltGridCreateUTest
   call ESMF_TEST((localrc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 																																								  
 
-   call ESMF_XGridGet(xgrid, elementCount=XGridCount, area=XGridArea, rc=localrc)
-   print *, "XGrid Cells / Area: ", XGridCount," / ",XGridArea
+!   call ESMF_XGridGet(xgrid, elementCount=XGridCount, area=XGridArea, rc=localrc)
+!   print *, "XGrid Cells / Area: ", XGridCount," / ",XGridArea
 
-  call ESMF_XGridWriteVTK(xgrid, filename='alttst_xgrid', rc=rc)
+   call ESMF_XGridWriteVTK(xgrid, filename='alttst_xgrid', rc=rc)
    if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE  
 		
    !compute flux
    print *, "Validating 2nd order flux conservation"
    call flux_exchange_sph(xgrid, rc=localrc)
    if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+
+     !Read FMS-generated offline exchange grid
+     print *, "Read offline xgrid to fieldbundle"
+
+     ! create FB
+     FBin = ESMF_FieldBundleCreate(rc=localrc)
+     call ESMF_XGridGet(xgrid, mesh=xgrid_mesh, rc=localrc)
+
+      print *, "add fields to fieldbundle"
+       ! add fields
+       allocate(flds(3))
+       flds = (/ 'tile1_cell  ', &
+                 'tile2_cell', &
+                 'xgrid_area' /)
+       do n = 1,size(flds)
+          fieldRd = ESMF_FieldCreate(xgrid_mesh, ESMF_TYPEKIND_R8, &
+               meshloc=ESMF_MESHLOC_ELEMENT, gridToFieldMap=(/2/), &
+               ungriddedLBound=(/1/), ungriddedUBound=(/2/), &
+               name=trim(flds(n)), rc=localrc)
+          call ESMF_FieldGet(fieldRd, farrayptr=ptr, rc=localrc)
+          ptr(:) = 0.0
+          nullify(ptr)
+          call ESMF_FieldBundleAdd(FBin, (/fieldRd/), rc=localrc)
+       end do 
+
+       print *, "validate fieldbundle"
+       ! validate field bundle
+       call ESMF_FieldBundleValidate(FBin, rc=localrc)
+       if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+   
+       print *, "Read xgrid to fieldbundle"
+       ! read file to FB
+       call ESMF_FieldBundleRead(FBin, &
+          fileName='data/C48_mosaic_tile1Xocean_mosaic_tile1.nc', &
+          rc=localrc)
+       if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+       print *, "Check values in fieldbundle"
+       call ESMF_FieldBundlePrint(FBin, rc=localrc)
+       if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
 
 
  contains
@@ -366,6 +451,16 @@ program ESMF_AltGridCreateUTest
     do i = 1, size(srcField)
       call ESMF_FieldRegridStore(xgrid, srcField=srcField(i), dstField=f_xgrid, &
         routehandle=s2x_rh(i), rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+      call ESMF_FieldRegridStore(xgrid, srcField=f_xgrid, dstField=dstField(i), &
+        routehandle=x2d_rh(i), rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+      call ESMF_FieldRegridStore(xgrid, srcField=dstField(i), dstField=f_xgrid, &
+        routehandle=d2x_rh(i), rc=localrc)
       if (ESMF_LogFoundError(localrc, &
           ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
@@ -971,7 +1066,7 @@ program ESMF_AltGridCreateUTest
     deallocate(s2x_rh, x2s_rh)
     deallocate(d2x_rh, x2d_rh)
 
-    call ESMF_XGridDestroy(xgrid,rc=localrc)
+!    call ESMF_XGridDestroy(xgrid,rc=localrc)
 
     if(present(rc)) rc = ESMF_SUCCESS
 
