@@ -1,0 +1,81 @@
+% $Id$
+
+\label{sec:xgrid:Testing}
+----------------------------------------------------------------------
+Several tests have been added to the structure to elucidate the process of external file reading for
+exchange grids. Additional verbosity has been added to the following alternative tests: AltXGridUtest,
+ XGridOffUtest, and TimeStepUTest. AltGridCreateUTest has been updated as well in the Grid tests.
+
+An example .stdout is provided here:
+---
+  Beginning Test, file ESMF_AltGridCreateUTest.F90, line 119
+  NUMBER_OF_PROCESSORS           1
+ Reading ATM mosaic to grid,
+ data/C48_mosaic.nc
+
+  PASS  Validating ATM grid creation, ESMF_AltGridCreateUTest.F90, line 191
+ Reading OCN mosaic to grid,
+ data/ocean_mosaic.nc
+
+  PASS  Validating OCN grid creation, ESMF_AltGridCreateUTest.F90, line 221
+
+ Building XGrid from mosaics
+  PASS  Validating Xgrid creation, ESMF_AltGridCreateUTest.F90, line 257
+ Validating 2nd order flux conservation
+  xgrid flux and area:    4.18879020478636        12.4263169007992
+   12.4263169007992
+ Read offline xgrid to fieldbundle
+ add fields to fieldbundle
+ validate fieldbundle
+ Read xgrid to fieldbundle
+ ---
+
+Here, compared to the base XGridUTest, each read and process step is printed. This ensures accuracy
+of the input files being read as well as the additional validation of each sub-step. Additionally, the
+flux conservation here 
+
+Additional .stdout continues here:
+---
+  Beginning Test, file ESMF_AltXGridUTest.F90, line 66
+  NUMBER_OF_PROCESSORS           1
+  PASS  Testing XGrid IsCreated for uncreated object, ESMF_AltXGridUTest.F90, li
+ ne 76
+  PASS  Testing XGrid IsCreated for uncreated object, ESMF_AltXGridUTest.F90, li
+ ne 84
+  PASS  Create test XGrid for IsCreated, ESMF_AltXGridUTest.F90, line 94
+  PASS  Testing XGrid IsCreated for created object, ESMF_AltXGridUTest.F90, line
+  102
+  PASS  Testing XGrid IsCreated for created object, ESMF_AltXGridUTest.F90, line
+  110
+  PASS  Destroy test XGrid for IsCreated, ESMF_AltXGridUTest.F90, line 118
+  PASS  Testing XGrid IsCreated for destroyed object, ESMF_AltXGridUTest.F90, li
+ ne 126
+  PASS  Testing XGrid IsCreated for destroyed object, ESMF_AltXGridUTest.F90, li
+ ne 134
+ Starting test3
+ Printing seqIndexArray    1.00000000000000        2.00000000000000
+
+  PASS  Creating an XGrid with area/centroid, sparseMatA2X, ESMF_AltXGridUTest.F
+ 90, line 144
+ Starting test4
+  xgrid flux and area:    47.5000000000000        23.7500000000000
+   23.7500000000000
+
+
+  PASS  Creating an XGrid with Mesh easy element create interface, ESMF_AltXGrid
+ UTest.F90, line 189
+
+ === Second Order Conservative Mesh to Mesh via XGrid ===
+ Conservation:
+ Rel Error =   0.000000000000000E+000
+ SRC mass =   2.881475015993668E-003
+ DST mass =   2.881475015993668E-003
+
+ Interpolation:
+ Max Error =   1.181917942128719E-002
+ Min Error =   2.048814261393367E-003
+ Avg Error =   7.243649770356647E-003
+---
+
+Here, the same validation printouts are provided as before. In further detail, the errors provided
+are computed as percent error. Error values above the threshold set in the test will fail the test.
