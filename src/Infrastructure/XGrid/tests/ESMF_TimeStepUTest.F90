@@ -141,7 +141,7 @@
     LNDGridfile = 'data/land.res.tile1'
     ICEGridfile = 'data/T42_grid.nc'
 
-    !! Support for offline read pending feedback
+    !! Offline read is currently supported but requires additional testing
     !------------------------------------------------------------------------
     ! Specify external mask/fraction files if necessary
 !    OCNMaskFile = 'data/ocean_mask.nc'
@@ -200,7 +200,6 @@
  !   do while(.not.ESMF_ClockIsStopTime(initClock), rc=rc)
     !------------------------------------------------------------------------
     ! Initialize grids
-    !! mask files will go here once supported
     call grid_read(Sa_grid, gridfile=ATMGridfile, rc=localrc)
     call grid_read(So_grid, gridfile=OCNGridfile, rc=localrc)
     call grid_read(Sl_grid, gridfile=LNDGridfile, rc=localrc)
@@ -321,6 +320,8 @@
     !=====================================================================
     ! FLUX OCEAN TO ICE
     !=====================================================================
+         call flux_exchange_sph(srcfield=So_Field, dstfield=Si_field, rc=localrc)
+         
         ! if (Ice%slow_ice_PE .or. Ocean%is_ocean_pe) then
         !   ! If the slow ice is on a subset of the ocean PEs, use the ocean PElist.
         !    call mpp_set_current_pelist(slow_ice_ocean_pelist)
@@ -332,10 +333,11 @@
         !   Time_flux_ocean_to_ice = Time
         !   call mpp_clock_end(newClock2)
 
-          call flux_exchange_sph(srcfield=So_Field, dstfield=Si_field, rc=localrc)
     !=====================================================================
     ! FLUX ICE TO OCEAN
-    !=====================================================================
+    !=====================================================================          
+        call flux_exchange_sph(srcfield=Si_Field, dstfield=So_field, rc=localrc)
+             
           ! Update Ice_ocean_boundary; the first iteration is supplied by restarts
         !   if (use_lag_fluxes) then
         !     call mpp_clock_begin(newClock3)
@@ -344,8 +346,6 @@
         !     call mpp_clock_end(newClock3)
         !   endif
         ! endif
-
-        call flux_exchange_sph(srcfield=Si_Field, dstfield=So_field, rc=localrc)
 
         ! if (do_chksum) then
         !   call coupler_chksum('flux_ocn2ice+', nc)
@@ -450,7 +450,8 @@
           !   endif
     
           !     if (do_concurrent_radiation) call mpp_clock_begin(newClocki)
-    
+          
+          !!$OMP Section-1 for concurrent radiation     
               !      ---- atmosphere dynamics ----
               ! if (do_atmos) then
               !   call mpp_clock_begin(newClockl)
@@ -470,15 +471,8 @@
               ! if (do_chksum) call atmos_ice_land_chksum('update_atmos_model_radiation(ser)', (nc-1)*num_atmos_calls+na, &
               !        Atm, Land, Ice, Land_ice_atmos_boundary, Atmos_ice_boundary, Atmos_land_boundary)
               ! if (do_debug)  call print_memuse_stats( 'update serial rad')
-
-    !=====================================================================
-    ! ATM TO MEDIATOR TO LAND/ICE
-    !=====================================================================
-
-              !      ---- atmosphere down ----
-
-              call flux_exchange_sph(xgrid=Sa_Sl_XGrid, srcfield=Sa_Field, dstfield=Sl_field, rc=localrc)
-              call flux_exchange_sph(xgrid=Sa_Si_XGrid, srcfield=Sa_Field, dstfield=Si_field, rc=localrc)
+              
+                            !      ---- atmosphere down ----
 
               ! if (do_atmos) then
               !   call mpp_clock_begin(newClockc)
@@ -488,7 +482,14 @@
               ! if (do_chksum) call atmos_ice_land_chksum('update_atmos_down+', (nc-1)*num_atmos_calls+na, Atm, Land, Ice, &
               !        Land_ice_atmos_boundary, Atmos_ice_boundary, Atmos_land_boundary)
               ! if (do_debug)  call print_memuse_stats( 'update down')
-    
+
+    !=====================================================================
+    ! ATM TO MEDIATOR TO LAND/ICE
+    !=====================================================================
+
+              call flux_exchange_sph(xgrid=Sa_Sl_XGrid, srcfield=Sa_Field, dstfield=Sl_field, rc=localrc)
+              call flux_exchange_sph(xgrid=Sa_Si_XGrid, srcfield=Sa_Field, dstfield=Si_field, rc=localrc)
+
               ! call mpp_clock_begin(newClockd)
               ! call flux_down_from_atmos( Time_atmos, Atm, Land, Ice, &
               !                            Land_ice_atmos_boundary, &
@@ -523,12 +524,11 @@
               ! if (do_chksum) call atmos_ice_land_chksum('update_ice_fast+', (nc-1)*num_atmos_calls+na, Atm, Land, Ice, &
               !        Land_ice_atmos_boundary, Atmos_ice_boundary, Atmos_land_boundary)
               ! if (do_debug)  call print_memuse_stats( 'update ice')
+              !!      --------------------------------------------------------------
+              !!      ---- atmosphere up ----
     !=====================================================================
     ! LAND/ICE TO MEDIATOR TO ATM
     !=====================================================================    
-              !!      --------------------------------------------------------------
-              !!      ---- atmosphere up ----
-
               call flux_exchange_sph(xgrid=Sa_Sl_XGrid, srcfield=Sl_Field, dstfield=Sa_field, rc=localrc)
               call flux_exchange_sph(xgrid=Sa_Si_XGrid, srcfield=Si_Field, dstfield=Sa_field, rc=localrc)
 
@@ -562,11 +562,12 @@
     
               !--------------
 
-    
+          !!$OMP Section-2 for concurrent radiation 
+          ! !      ---- CONCURRENT atmosphere radiation ----
+          ! if (do_concurrent_radiation) then
           !       call mpp_clock_begin(newClockj)
           !       call update_atmos_model_radiation( Land_ice_atmos_boundary, Atm )
           !       call mpp_clock_end(newClockj)
-
     
           !   call mpp_clock_begin(newClockk)
           !   call update_atmos_model_state( Atm )
@@ -602,11 +603,10 @@
     !=====================================================================
     ! LAND TO ICE
     !=====================================================================   
+          call flux_exchange_sph(xgrid=Sl_Si_XGrid, srcfield=Sl_Field, dstfield=Si_field, rc=localrc)
           !
           !     need flux call to put runoff and p_surf on ice grid
           !
-
-          call flux_exchange_sph(xgrid=Sl_Si_XGrid, srcfield=Sl_Field, dstfield=Si_field, rc=localrc)
 
           ! call mpp_clock_begin(newClock9)
           ! call flux_land_to_ice( Time, Land, Ice, Land_ice_boundary )
@@ -2406,6 +2406,7 @@
         !----------------------------------------------------
         !export_FMS_xgrid
         !This method duplicates the area and centroid calculations from FMS FRE-NCtools
+        !This method is also incomplete but provided as reference for future work
         !----------------------------------------------------
           character(16), parameter :: apConv = 'Attribute_IO'
           character(16), parameter :: apPurp = 'attributes'
